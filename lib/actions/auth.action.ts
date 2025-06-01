@@ -3,6 +3,25 @@
 import { auth, db } from "@/firebase/admin";
 import { cookies } from "next/headers";
 
+interface SignUpParams {
+  uid: string;
+  name: string;
+  email: string;
+  password: string;
+}
+
+interface SignInParams {
+  email: string;
+  idToken: string;
+}
+
+interface User {
+  uid: string;
+  email?: string;
+  name?: string;
+  createdAt?: string;
+}
+
 // Session duration (1 week)
 const SESSION_DURATION = 60 * 60 * 24 * 7;
 
@@ -71,20 +90,32 @@ export async function signIn(params: SignInParams) {
   const { email, idToken } = params;
 
   try {
-    const userRecord = await auth.getUserByEmail(email);
-    if (!userRecord)
-      return {
-        success: false,
-        message: "User does not exist. Create an account.",
-      };
+    // First, verify the ID token to get the user's UID
+    const decodedToken = await auth.verifyIdToken(idToken);
+    const uid = decodedToken.uid;
 
+    // Check if user exists in Firestore
+    const userDoc = await db.collection("users").doc(uid).get();
+    
+    // If user doesn't exist in Firestore but exists in Auth (Google sign-up case)
+    if (!userDoc.exists) {
+      // Create user document with basic info
+      await db.collection("users").doc(uid).set({
+        email,
+        name: decodedToken.name || '',
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    // Set the session cookie
     await setSessionCookie(idToken);
+    
+    return { success: true, message: "Signed in successfully" };
   } catch (error: any) {
-    console.log("");
-
+    console.error('Sign in error:', error);
     return {
       success: false,
-      message: "Failed to log into account. Please try again.",
+      message: error.message || "Failed to log into account. Please try again.",
     };
   }
 }
@@ -113,9 +144,14 @@ export async function getCurrentUser(): Promise<User | null> {
       .get();
     if (!userRecord.exists) return null;
 
+    const userData = userRecord.data();
+    if (!userData) return null;
+    
     return {
-      ...userRecord.data(),
-      id: userRecord.id,
+      uid: userRecord.id,
+      email: userData.email || '',
+      name: userData.name,
+      createdAt: userData.createdAt
     } as User;
   } catch (error) {
     console.log(error);

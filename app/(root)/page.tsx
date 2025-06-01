@@ -12,14 +12,18 @@ import {
 
 async function Home() {
   const user = await getCurrentUser();
+  const userId = user?.uid;
 
-  const [userInterviews, allInterview] = await Promise.all([
-    getInterviewsByUserId(user?.id!),
-    getLatestInterviews({ userId: user?.id! }),
-  ]);
+  // Only fetch interviews if user is authenticated
+  const [userInterviews, allInterview] = await (userId
+    ? Promise.all([
+        getInterviewsByUserId(userId),
+        getLatestInterviews({ userId, limit: 5 }),
+      ])
+    : Promise.resolve([null, null]));
 
-  const hasPastInterviews = userInterviews?.length! > 0;
-  const hasUpcomingInterviews = allInterview?.length! > 0;
+  const hasPastInterviews = !!userInterviews?.length;
+  const hasUpcomingInterviews = !!allInterview?.length;
 
   return (
     <>

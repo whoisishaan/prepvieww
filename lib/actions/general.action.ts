@@ -2,9 +2,40 @@
 
 import { generateObject } from "ai";
 import { google } from "@ai-sdk/google";
-
 import { db } from "@/firebase/admin";
 import { feedbackSchema } from "@/constants";
+
+interface CreateFeedbackParams {
+  interviewId: string;
+  userId: string;
+  transcript: Array<{ role: string; content: string }>;
+  feedbackId: string;
+}
+
+interface Interview {
+  id: string;
+  userId: string;
+  createdAt: any; // Firestore timestamp or date string
+  finalized?: boolean;
+  [key: string]: any;
+}
+
+interface Feedback {
+  id: string;
+  interviewId: string;
+  userId: string;
+  [key: string]: any;
+}
+
+interface GetFeedbackByInterviewIdParams {
+  interviewId: string;
+  userId: string;
+}
+
+interface GetLatestInterviewsParams {
+  userId: string;
+  limit: number;
+}
 
 export async function createFeedback(params: CreateFeedbackParams) {
   const { interviewId, userId, transcript, feedbackId } = params;
@@ -110,16 +141,26 @@ export async function getLatestInterviews(
 }
 
 export async function getInterviewsByUserId(
-  userId: string
+  userId: string | undefined
 ): Promise<Interview[] | null> {
-  const interviews = await db
-    .collection("interviews")
-    .where("userId", "==", userId)
-    .orderBy("createdAt", "desc")
-    .get();
+  if (!userId) {
+    console.error('Error: User ID is required to fetch interviews');
+    return null;
+  }
 
-  return interviews.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  })) as Interview[];
+  try {
+    const interviews = await db
+      .collection("interviews")
+      .where("userId", "==", userId)
+      .orderBy("createdAt", "desc")
+      .get();
+
+    return interviews.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Interview[];
+  } catch (error) {
+    console.error('Error fetching interviews:', error);
+    return null;
+  }
 }
