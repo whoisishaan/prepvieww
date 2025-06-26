@@ -16,9 +16,25 @@ enum CallStatus {
   FINISHED = "FINISHED",
 }
 
+interface Message {
+  type: string;
+  transcriptType?: string;
+  transcript?: string;
+  role?: string;
+}
+
 interface SavedMessage {
   role: "user" | "system" | "assistant";
   content: string;
+}
+
+interface AgentProps {
+  userName: string;
+  userId: string | undefined;
+  interviewId: string;
+  feedbackId: string | undefined;
+  type: string;
+  questions: string[];
 }
 
 const Agent = ({
@@ -34,19 +50,42 @@ const Agent = ({
   const [messages, setMessages] = useState<SavedMessage[]>([]);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [lastMessage, setLastMessage] = useState<string>("");
+  const [sessionStartTime, setSessionStartTime] = useState<number>(0);
+
+  useEffect(() => {
+    setSessionStartTime(Date.now());
+  }, []);
 
   useEffect(() => {
     const onCallStart = () => {
+      console.log("Meeting started successfully");
+      console.log("Vapi configuration:", {
+        token: process.env.NEXT_PUBLIC_VAPI_WEB_TOKEN?.substring(0, 10) + "...", // Log only first 10 chars for security
+        userId: userId,
+        interviewId: interviewId,
+        timestamp: new Date().toISOString()
+      });
       setCallStatus(CallStatus.ACTIVE);
     };
 
     const onCallEnd = () => {
+      console.log("Meeting ended. Details:", {
+        timestamp: new Date().toISOString(),
+        duration: new Date().getTime() - sessionStartTime,
+        callStatus: callStatus,
+        userId: userId,
+        interviewId: interviewId,
+        feedbackId: feedbackId,
+        type: type,
+        messagesCount: messages.length
+      });
       setCallStatus(CallStatus.FINISHED);
     };
 
     const onMessage = (message: Message) => {
       if (message.type === "transcript" && message.transcriptType === "final") {
-        const newMessage = { role: message.role, content: message.transcript };
+        const role: "user" | "system" | "assistant" = message.role === "user" || message.role === "system" || message.role === "assistant" ? message.role! : "assistant";
+        const newMessage = { role, content: message.transcript! };
         setMessages((prev) => [...prev, newMessage]);
       }
     };
@@ -62,7 +101,19 @@ const Agent = ({
     };
 
     const onError = (error: Error) => {
-      console.log("Error:", error);
+      console.error("Meeting error:", {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+        timestamp: new Date().toISOString(),
+        currentStatus: callStatus,
+        userId: userId,
+        interviewId: interviewId,
+        feedbackId: feedbackId,
+        type: type
+      });
+      // Log to browser console
+      console.error("Detailed error:", error);
     };
 
     vapi.on("call-start", onCallStart);
@@ -80,7 +131,7 @@ const Agent = ({
       vapi.off("speech-end", onSpeechEnd);
       vapi.off("error", onError);
     };
-  }, []);
+  }, [callStatus, sessionStartTime, messages.length]);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -116,8 +167,11 @@ const Agent = ({
 
   const handleCall = async () => {
     setCallStatus(CallStatus.CONNECTING);
+    console.log("Starting interview with type:", type);
+    console.log("Workflow ID:", process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID?.substring(0, 10) + "...");
 
     if (type === "generate") {
+      console.log("Starting workflow interview");
       await vapi.start(process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID!, {
         variableValues: {
           username: userName,

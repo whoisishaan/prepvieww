@@ -1,13 +1,30 @@
+"use client";
+
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 
-import { cn, getTechLogos } from "@/lib/utils";
+interface TechIconProps {
+  techStack: string[];
+  techIcons?: Array<{ tech: string; url: string }>;
+}
 
-const DisplayTechIcons = async ({ techStack }: TechIconProps) => {
-  const techIcons = await getTechLogos(techStack);
+const DisplayTechIcons = ({ techStack, techIcons = [] }: TechIconProps) => {
+  // If techIcons is not provided, use the first 3 tech stack items to create icon data
+  const iconsToShow = techIcons.length > 0 
+    ? techIcons.slice(0, 3) 
+    : techStack
+        .filter(tech => tech && tech.trim() !== '') // Filter out empty or whitespace-only strings
+        .slice(0, 3)
+        .map(tech => ({
+          tech,
+          url: `/icons/tech/${tech.toLowerCase().trim().replace(/\s+/g, '-')}.svg`
+        }));
+
+  if (iconsToShow.length === 0) return null;
 
   return (
     <div className="flex flex-row">
-      {techIcons.slice(0, 3).map(({ tech, url }, index) => (
+      {iconsToShow.map(({ tech, url }, index) => (
         <div
           key={tech}
           className={cn(
@@ -16,7 +33,6 @@ const DisplayTechIcons = async ({ techStack }: TechIconProps) => {
           )}
         >
           <span className="tech-tooltip">{tech}</span>
-
           <Image
             src={url}
             alt={tech}

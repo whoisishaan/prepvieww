@@ -52,28 +52,39 @@ export async function changePassword(data: ChangePasswordData) {
   }
 }
 
-export async function getUserProfile(userId: string): Promise<User> {
+export async function getUserProfile(userId: string | undefined): Promise<User> {
+  if (!userId) {
+    throw new Error("User ID is required");
+  }
+
   try {
     const userDoc = await db.collection("users").doc(userId).get();
+    
     if (!userDoc.exists) {
-      throw new Error("User not found");
+      throw new Error("User not found in database");
     }
     
     const data = userDoc.data();
+    if (!data) {
+      throw new Error("User data is empty");
+    }
+    
     return {
       id: userDoc.id,
-      name: data?.name || '',
-      email: data?.email || '',
-      phoneNumber: data?.phoneNumber || '',
-      institution: data?.institution || '',
-      location: data?.location || '',
-      dateOfBirth: data?.dateOfBirth || '',
-      profilePictureURL: data?.profilePictureURL || '',
-      createdAt: data?.createdAt || new Date().toISOString(),
-      updatedAt: data?.updatedAt || new Date().toISOString(),
+      name: data.name || '',
+      email: data.email || '',
+      phoneNumber: data.phoneNumber || '',
+      institution: data.institution || '',
+      location: data.location || '',
+      dateOfBirth: data.dateOfBirth || '',
+      profilePictureURL: data.profilePictureURL || '',
+      emailVerified: data.emailVerified || false,
+      socialLinks: data.socialLinks || {},
+      createdAt: data.createdAt || new Date().toISOString(),
+      updatedAt: data.updatedAt || new Date().toISOString(),
     };
   } catch (error) {
     console.error("Error getting user profile:", error);
-    throw error;
+    throw new Error("Failed to load user profile. Please try again later.");
   }
 }

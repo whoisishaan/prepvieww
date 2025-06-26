@@ -46,6 +46,41 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
-  return Response.json({ success: true, data: "Thank you!" }, { status: 200 });
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const interviewId = searchParams.get('interviewId');
+
+  if (!interviewId) {
+    return Response.json(
+      { success: false, error: 'Interview ID is required' },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const interviewDoc = await db.collection('interviews').doc(interviewId).get();
+    
+    if (!interviewDoc.exists) {
+      return Response.json(
+        { success: false, error: 'Interview not found' },
+        { status: 404 }
+      );
+    }
+
+    const interviewData = interviewDoc.data();
+    
+    return Response.json({
+      success: true,
+      data: {
+        id: interviewDoc.id,
+        ...interviewData
+      }
+    }, { status: 200 });
+  } catch (error) {
+    console.error('Error fetching interview:', error);
+    return Response.json(
+      { success: false, error: 'Failed to fetch interview' },
+      { status: 500 }
+    );
+  }
 }

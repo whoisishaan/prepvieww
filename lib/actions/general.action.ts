@@ -108,6 +108,9 @@ export async function getFeedbackByInterviewId(
 ): Promise<Feedback | null> {
   const { interviewId, userId } = params;
 
+  // Return null if userId is undefined
+  if (!userId) return null;
+
   const querySnapshot = await db
     .collection("feedback")
     .where("interviewId", "==", interviewId)

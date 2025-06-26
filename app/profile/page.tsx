@@ -3,6 +3,8 @@ import { getCurrentUser } from "@/lib/actions/auth.action";
 import { getUserProfile } from "@/lib/actions/user.action";
 import { ProfileForm } from "@/components/ProfileForm";
 import { User } from "@/types/user.type";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 // Helper function to ensure the user object matches the User type
 const mapToUser = (data: any): User => ({
@@ -28,27 +30,46 @@ const mapToUser = (data: any): User => ({
 export default async function ProfilePage() {
   const currentUser = await getCurrentUser();
   
-  if (!currentUser) {
+  if (!currentUser?.uid) {
     return notFound();
   }
 
-  const userData = await getUserProfile(currentUser.id);
-  const user = mapToUser(userData);
+  try {
+    const userData = await getUserProfile(currentUser.uid);
+    const user = mapToUser(userData);
 
-  return (
-    <div className="container mx-auto py-10">
-      <div className="space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold">My Profile</h1>
-          <p className="text-muted-foreground">
-            Manage your personal information and preferences.
-          </p>
-        </div>
+    return (
+      <div className="container mx-auto py-10">
+        <div className="space-y-8">
+          <div>
+            <h1 className="text-3xl font-bold">My Profile</h1>
+            <p className="text-muted-foreground">
+              Manage your personal information and preferences.
+            </p>
+          </div>
 
-        <div className="bg-card rounded-lg border p-6 shadow-sm">
-          <ProfileForm user={user} />
+          <div className="bg-card rounded-lg border p-6 shadow-sm">
+            <ProfileForm user={user} />
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  } catch (error) {
+    console.error("Error loading profile:", error);
+    return (
+      <div className="container mx-auto py-10">
+        <div className="space-y-4">
+          <h1 className="text-3xl font-bold">Profile</h1>
+          <p className="text-destructive">
+            {error instanceof Error ? error.message : 'Error loading profile. Please try again later.'}
+          </p>
+          <Button asChild>
+            <Link href="/">
+              Return Home
+            </Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 }

@@ -35,7 +35,7 @@ async function Home() {
           </p>
 
           <Button asChild className="btn-primary max-sm:w-full">
-            <Link href="/interview">Generate Interview</Link>
+            <Link href="/interview">Start an Interview</Link>
           </Button>
         </div>
 
@@ -94,4 +94,5 @@ async function Home() {
     </>
   );
 }
+
 export default Home;
